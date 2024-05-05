@@ -36,16 +36,11 @@ Usage:
 
 Options:
     -h, --help           display help message
-    --version            display version and exit
-    --verbose            verbose logging
-    --silent             silent
-    --username=USERNAME  username
     --logfile=FILE       log filename at home directory [default: .lexlog.txt]
 """
 
 name    = "lex"
-version = "2016-09-06T1759Z"
-logo    = None
+version = "2024-05-05T2256Z"
 
 import ctypes
 import ctypes.util
@@ -54,26 +49,10 @@ import os
 import sys
 import time
 
-import propyte
-import pyprel
-import shijian
-
-def main(options):
-
-    global program
-    program = propyte.Program(
-        options = options,
-        name    = name,
-        version = version,
-        logo    = logo
-    )
-    global log
-    from propyte import log
+def main(options=docopt.docopt(__doc__)):
 
     global filename_log
     filename_log = options["--logfile"]
-
-    log.info("")
 
     keyboard = Keyboard()
     keyboard.log_loop()
@@ -264,7 +243,7 @@ class Keyboard:
     def log_loop(self):
 
         log_filename = "/home/{username}/{filename}".format(
-            username = program.username,
+            username = os.getlogin(),
             filename = filename_log
         )
         
@@ -275,14 +254,10 @@ class Keyboard:
                 #log.info("detected keystroke: {key}".format(
                 #    key = pressed_keys
                 #))
-                #print(pressed_keys, end = "")
-                print pressed_keys,
+                #print pressed_keys,
+                print(pressed_keys, end = "")
                 with open(log_filename, "a") as file_log:
                     file_log.write(pressed_keys)
 
 if __name__ == "__main__":
-    options = docopt.docopt(__doc__)
-    if options["--version"]:
-        print(version)
-        exit()
-    main(options)
+    main()
